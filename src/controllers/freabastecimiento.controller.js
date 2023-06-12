@@ -4,7 +4,19 @@ import { getConnection } from "./../database/database.js";
 const listarReabastecimientoDisponibles = async (req, res) => {
     try {
         const estado = true;
-        const [result] = await getConnection.query("SELECT r.*, DATE_FORMAT(r.fecha_reabastecimiento, '%d-%m-%Y') AS fecha_reabastecimiento, m.nombre_medicamento, p.nombre_proveedor FROM inventario_reabastecimiento r INNER JOIN inventario_medicamentos m ON r.producto_id = m.id_medicamento INNER JOIN inventario_proveedores p ON r.proveedor_id = p.id_proveedor WHERE r.estado = ?;", estado);
+        const [result] = await getConnection.query("SELECT r.*, DATE_FORMAT(r.fecha_reabastecimiento, '%d-%m-%Y') AS fecha_reabastecimiento, m.nombre_medicamento, p.nombre_proveedor FROM inventario_reabastecimiento r INNER JOIN inventario_medicamentos m ON r.producto_id = m.id_medicamento INNER JOIN inventario_proveedores p ON r.proveedor_id = p.id_proveedor WHERE r.estado = ? ORDER BY r.fecha_reabastecimiento;", estado);
+        console.log(result);
+        res.json(result);
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+}
+
+//listara los reabastecimeintos inactivos o eliminados
+const listarReabastecimientoNoDisponibles = async (req, res) => {
+    try {
+        const estado = false;
+        const [result] = await getConnection.query("SELECT r.*, DATE_FORMAT(r.fecha_reabastecimiento, '%d-%m-%Y') AS fecha_reabastecimiento, m.nombre_medicamento, p.nombre_proveedor FROM inventario_reabastecimiento r INNER JOIN inventario_medicamentos m ON r.producto_id = m.id_medicamento INNER JOIN inventario_proveedores p ON r.proveedor_id = p.id_proveedor WHERE r.estado = ? ORDER BY r.fecha_reabastecimiento;", estado);
         console.log(result);
         res.json(result);
     } catch (error) {
@@ -65,14 +77,26 @@ const addReabastecimiento = async (req, res) => {
 const updateReabastecimiento = async (req, res) => {
     try {
         const { id } = req.params;
-        const { producto_id,proveedor_id, cantidad_reabastecida, fecha_reabastecimiento , costo_total} = req.body;
-        const reabastecimientoProps = {producto_id, proveedor_id, cantidad_reabastecida, fecha_reabastecimiento , costo_total}
-        const [result] = await getConnection.query("UPDATE inventario_reabastecimiento SET ? WHERE id_reabastecimiento = ?", [reabastecimientoProps, id]);
+        const { producto_id, proveedor_id, cantidad_reabastecida, fecha_reabastecimiento, costo_total } = req.body;
+        const reabastecimientoProps = { producto_id, proveedor_id, cantidad_reabastecida, fecha_reabastecimiento, costo_total };
+
+        // Obtener la cantidad_reabastecida anterior
+        const [reabastecimientoAnterior] = await getConnection.query("SELECT cantidad_reabastecida FROM inventario_reabastecimiento WHERE id_reabastecimiento = ?", [id]);
+        const cantidadReabastecidaAnterior = reabastecimientoAnterior[0].cantidad_reabastecida;
+
+        // Actualizar la cantidad_reabastecida en la tabla inventario_reabastecimiento
+        const [result] = await getConnection.query("UPDATE inventario_reabastecimiento SET ?, cantidad_reabastecida = cantidad_reabastecida + ? WHERE id_reabastecimiento = ?", [reabastecimientoProps, cantidad_reabastecida - cantidadReabastecidaAnterior, id]);
+
+        // Actualizar la cantidad en la tabla inventario_medicamento
+        await getConnection.query("UPDATE inventario_medicamentos SET cantidad = cantidad + ? WHERE id_medicamento = ?", [cantidad_reabastecida - cantidadReabastecidaAnterior, producto_id]);
+
         res.json(result);
     } catch (error) {
         res.status(500).send(error.message);
     }
-}
+};
+
+
 
 //Eliminar(cambiar el estado) de los proveedores que yo no son necesarios
 const deleteReabastecimiento = async (req, res) => {
@@ -104,12 +128,45 @@ const deleteReabastecimientos = async (req, res) => {
     }
 }
 
+
+const returnReabastecimiento = async (req, res) => {
+    try {
+        const estado = true;
+        const { id } = req.params;
+        const [result] = await getConnection.query("UPDATE inventario_reabastecimiento SET estado = ? WHERE id_reabastecimiento = ?",[estado , id]);
+        console.log(result);
+        res.json(result);
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+}
+
+const returnReabastecimientos = async (req, res) => {
+    try {
+        const { ids } = req.body;
+        const estado = true;
+
+        if (!ids || !Array.isArray(ids) || ids.length === 0) {
+            return res.status(400).json({ error: "IDs inválidos" });
+        }
+        const sql = "UPDATE inventario_reabastecimiento SET estado = ? WHERE id_reabastecimiento IN (?)";
+        const [result] = await getConnection.query(sql, [estado, ids]);
+
+        res.json(result);
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+}
+
 export const methods = {
     listarReabastecimientoDisponibles,
+    listarReabastecimientoNoDisponibles,
     listarReabastecimientoProductos,
     listarReabastecimientoProveeores,
     addReabastecimiento,
     updateReabastecimiento,
     deleteReabastecimiento,
-    deleteReabastecimientos
+    deleteReabastecimientos,
+    returnReabastecimiento,
+    returnReabastecimientos
 }

@@ -7,6 +7,9 @@ router.get("/", reabastecerController.listarReabastecimientoDisponibles);
 router.get("/productos", reabastecerController.listarReabastecimientoProductos);
 router.get("/proveedores", reabastecerController.listarReabastecimientoProveeores);
 
+//listar producto no disponibles
+router.get("/no", reabastecerController.listarReabastecimientoNoDisponibles);
+
 //Insercion
 router.post("/registrar", reabastecerController.addReabastecimiento);
 
@@ -16,5 +19,9 @@ router.put("/actualizar/:id",reabastecerController.updateReabastecimiento);
 //Eliminar
 router.put("/eliminar/:id", reabastecerController.deleteReabastecimiento);
 router.put("/eliminarVarios", reabastecerController.deleteReabastecimientos);
+
+//Reactivar
+router.put("/regresar/:id", reabastecerController.returnReabastecimiento);
+router.put("/regresarVarios", reabastecerController.returnReabastecimientos);
 
 export default router;
