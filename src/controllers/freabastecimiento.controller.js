@@ -37,15 +37,29 @@ const listarReabastecimientoProveeores = async (req, res) => {
 //insertar nuevo registro de ventas 
 const addReabastecimiento = async (req, res) => {
     try {
-        const { producto_id,proveedor_id, cantidad_reabastecida, fecha_reabastecimiento , costo_total } = req.body;
-        const reabastecimientoProps = { producto_id, proveedor_id, cantidad_reabastecida, fecha_reabastecimiento ,costo_total, 'estado': true };
-        const [result] = await getConnection.query("INSERT INTO inventario_reabastecimiento SET ?", reabastecimientoProps);
-        res.json(result);
-    }
-    catch (error) {
+        const { producto_id, proveedor_id, cantidad_reabastecida, fecha_reabastecimiento, costo_total } = req.body;
+        const reabastecimientoProps = { producto_id, proveedor_id, cantidad_reabastecida, fecha_reabastecimiento, costo_total, estado: true };
+
+        // Verificar si ya existe un reabastecimiento para el producto en la misma fecha
+        const [existingReabastecimiento] = await getConnection.query("SELECT * FROM inventario_reabastecimiento WHERE producto_id = ? AND fecha_reabastecimiento = ?", [producto_id, fecha_reabastecimiento]);
+        if (existingReabastecimiento.length > 0) {
+            return res.status(400).json({ message: 'Ya se ha registrado un reabastecimiento para este producto en la misma fecha.' });
+        }
+
+        // Insertar el registro en la tabla inventario_reabastecimiento
+        const [reabastecimientoResult] = await getConnection.query("INSERT INTO inventario_reabastecimiento SET ?", reabastecimientoProps);
+        const reabastecimientoId = reabastecimientoResult.insertId;
+
+        // Actualizar la cantidad en la tabla inventario_medicamentos
+        const [productoResult] = await getConnection.query("UPDATE inventario_medicamentos SET cantidad = cantidad + ? WHERE id_medicamento = ?", [cantidad_reabastecida, producto_id]);
+
+        res.json({ reabastecimientoId, productoResult });
+    } catch (error) {
         res.status(500).send(error.message);
     }
 };
+
+
 
 //editar las ventas que estan mal registradas
 const updateReabastecimiento = async (req, res) => {
