@@ -20,7 +20,7 @@ router.put("/actualizar/:id",reabastecerController.updateReabastecimiento);
 router.put("/eliminar/:id", reabastecerController.deleteReabastecimiento);
 router.put("/eliminarVarios", reabastecerController.deleteReabastecimientos);
 
-//Reactivar
+//Reactivar lo rebastecimientos eliminados
 router.put("/regresar/:id", reabastecerController.returnReabastecimiento);
 router.put("/regresarVarios", reabastecerController.returnReabastecimientos);
 
